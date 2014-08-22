@@ -4,7 +4,7 @@
 \title{Attempts to install a package directly from github.}
 \usage{
 install_github(repo, username = NULL, ref = "master", subdir = NULL,
-  auth_token = github_pat(), github_url = NULL, ..., dependencies = TRUE)
+  auth_token = github_pat(), host = "api.github.com", ...)
 }
 \arguments{
 \item{repo}{Repository address in the format
@@ -13,7 +13,7 @@ specify \code{subdir} and/or \code{ref} using the respective parameters
 (see below); if both is specified, the values in \code{repo} take
 precedence.}
 
-\item{username}{User name. Deprecate: please include username in the
+\item{username}{User name. Deprecated: please include username in the
 \code{repo}}
 
 \item{ref}{Desired git reference. Could be a commit, tag, or branch
@@ -27,13 +27,10 @@ supply to this argument. This is safer than using a password because
 you can easily delete a PAT without affecting any others. Defaults to
 the \code{GITHUB_PAT} environment variable.}
 
-\item{github_url}{Defaults to NULL, so the default archive URL is served
-from the GitHub API. You can set it to your custom Enterprise GitHub URL.}
+\item{host}{Github API host to use. Override with your github enterprise
+hostname.}
 
 \item{...}{Other arguments passed on to \code{\link{install}}.}
-
-\item{dependencies}{By default, installs all dependencies so that you can
-build vignettes and use all functionality of the package.}
 }
 \description{
 This function is vectorised on \code{repo} so you can install multiple
@@ -63,7 +60,6 @@ install_github("hadley/private", auth_token = "abc")
 \code{\link{github_pull}}
 
 Other package installation: \code{\link{install_bitbucket}};
-  \code{\link{install_github_enterprise}};
   \code{\link{install_gitorious}};
   \code{\link{install_git}}; \code{\link{install_svn}};
   \code{\link{install_url}}; \code{\link{install_version}};

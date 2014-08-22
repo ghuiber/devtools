@@ -1,13 +1,16 @@
 uses_git <- function(pkg = ".") {
+  if (!file.info(pkg)$isdir) return(FALSE)
   pkg <- as.package(pkg)
   file.exists(file.path(pkg$path, ".git"))
 }
 
-git <- function(pkg = ".", args, quiet = FALSE) {
-  pkg <- as.package(pkg)
+git <- function(args, quiet = TRUE, path = ".") {
+  full <- paste0(shQuote(git_path()), " ", paste(args, collapse = ""))
+  if (!quiet) {
+    message(full)
+  }
 
-  full <- paste(shQuote(git_path()), " ", paste(args, collapse = ", "), sep = "")
-  result <- in_dir(pkg$path, system(full, intern = TRUE, ignore.stderr = quiet))
+  result <- in_dir(path, system(full, intern = TRUE, ignore.stderr = quiet))
 
   status <- attr(result, "status") %||% 0
   if (!identical(as.character(status), "0")) {
@@ -17,11 +20,23 @@ git <- function(pkg = ".", args, quiet = FALSE) {
   result
 }
 
+git_sha1 <- function(n = 10, path = ".") {
+  sha <- git(c("rev-parse", " --short=", n, " HEAD"), path = path)
+  if (uncommitted(path)) sha <- paste0(sha, "*")
+  sha
+}
+
+uncommitted <- function(path = ".") {
+  in_dir(path, system("git diff-index --quiet --cached HEAD") == 1 ||
+    system("git diff-files --quiet") == 1)
+}
+
+
 github_info <- function(pkg = ".") {
   pkg <- as.package(pkg)
   if (!uses_git(pkg)) return(github_dummy)
 
-  remotes <- git(pkg, "remote -v")
+  remotes <- git("remote -v", path = pkg$path)
   remotes_df <- read.table(text = remotes, stringsAsFactors = FALSE)
   names(remotes_df) <- c("name", "url", "type")
 
@@ -76,4 +91,28 @@ git_path <- function(git_binary_name = NULL) {
   }
 
   stop("Git does not seem to be installed on your system.", call. = FALSE)
+}
+
+# Extract the commit hash from a git archive. Git archives include the SHA1
+# hash as the comment field of the zip central directory record
+# (see https://www.kernel.org/pub/software/scm/git/docs/git-archive.html)
+# Since we know it's 40 characters long we seek that many bytes minus 2
+# (to confirm the comment is exactly 40 bytes long)
+git_extract_sha1 <- function(bundle) {
+
+  # open the bundle for reading
+  conn <- file(bundle, open = "rb", raw = TRUE)
+  on.exit(close(conn))
+
+  # seek to where the comment length field should be recorded
+  seek(conn, where = -0x2a, origin = "end")
+
+  # verify the comment is length 0x28
+  len <- readBin(conn, "raw", n = 2)
+  if (len[1] == 0x28 && len[2] == 0x00) {
+    # read and return the SHA1
+    rawToChar(readBin(conn, "raw", n = 0x28))
+  } else {
+    NULL
+  }
 }

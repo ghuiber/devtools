@@ -91,13 +91,17 @@ use_knitr <- function(pkg = ".") {
 use_rcpp <- function(pkg = ".") {
   pkg <- as.package(pkg)
 
+  message("Adding Rcpp to LinkingTo and Imports")
   add_desc_package(pkg, "LinkingTo", "Rcpp")
   add_desc_package(pkg, "Imports", "Rcpp")
+
+  message("Creating src/ and src/.gitignore")
   dir.create(file.path(pkg$path, "src"), showWarnings = FALSE)
+  union_write(file.path(pkg$path, "src", ".gitignore"), c(".o", ".so", ".dll"))
 
   message(
-    "Include the following roxygen tags somewhere in your package:\n",
-    "#' @useDynLib mypackage\n",
+    "Next, include the following roxygen tags somewhere in your package:\n",
+    "#' @useDynLib ", pkg$package, "\n",
     "#' @importFrom Rcpp sourceCpp"
   )
 }
@@ -265,4 +269,49 @@ use_data_raw <- function(pkg = ".") {
   message("Next: \n",
     "* Add data creation scripts in data-raw\n",
     "* Use devtools::use_data() to add data to package")
+}
+
+#' Add a file to \code{.Rbuildignore}
+#'
+#' \code{.Rbuildignore} has a regular expression on each line, but it's
+#' usually easier to work with specific file names. By default, will (crudely)
+#' turn a filename into a regular expression that will only match that
+#' path. Repeated entries will be silently removed.
+#'
+#' @param pkg package description, can be path or package name.  See
+#'   \code{\link{as.package}} for more information
+#' @param files Name of file.
+#' @param escape If \code{TRUE}, the default, will escape \code{.} to
+#'   \code{\\.} and surround with \code{^} and \code{$}.
+#' @return Nothing, called for its side effect.
+#' @export
+#' @aliases add_build_ignore
+#' @family infrastructure
+#' @keywords internal
+use_build_ignore <- function(files, escape = TRUE, pkg = ".") {
+  pkg <- as.package(pkg)
+
+  if (escape) {
+    files <- paste0("^", gsub("\\.", "\\\\.", files), "$")
+  }
+
+  path <- file.path(pkg$path, ".Rbuildignore")
+  union_write(path, files)
+
+  invisible(TRUE)
+}
+
+add_build_ignore <- function(pkg = ".", files, escape = TRUE) {
+  use_build_ignore(files, escape = escape, pkg = pkg)
+}
+
+union_write <- function(path, new_lines) {
+  if (file.exists(path)) {
+    lines <- readLines(path, warn = FALSE)
+  } else {
+    lines <- character()
+  }
+
+  all <- union(lines, new_lines)
+  writeLines(all, path)
 }
